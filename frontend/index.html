@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bonk Sentiment Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">Bonk Sentiment Tracker</h1>
+            <p class="text-gray-600">AI-Powered Social Media Sentiment Analysis</p>
+        </header>
+
+        <!-- Latest Summary Card -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 class="text-2xl font-semibold mb-4">Latest Sentiment Summary</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h3 class="text-lg font-medium mb-2">Tweet Statistics</h3>
+                    <p class="text-gray-700" id="tweetStats">Loading...</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h3 class="text-lg font-medium mb-2">Sentiment Distribution</h3>
+                    <canvas id="sentimentChart"></canvas>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h3 class="text-lg font-medium mb-2">Engagement Weighted Sentiment</h3>
+                    <canvas id="weightedSentimentChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Historical Trends -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 class="text-2xl font-semibold mb-4">Historical Trends</h2>
+            <canvas id="trendChart"></canvas>
+        </div>
+
+        <!-- Detailed Analysis -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-semibold mb-4">Recent Tweets Analysis</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full table-auto">
+                    <thead>
+                        <tr class="bg-gray-50">
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tweet</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sentiment</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Confidence</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engagement</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detailedAnalysis" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="4" class="px-6 py-4 text-center">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Utility functions
+        function formatNumber(num) {
+            return new Intl.NumberFormat().format(num);
+        }
+
+        function getColorForSentiment(sentiment) {
+            const colors = {
+                positive: '#34D399',
+                neutral: '#60A5FA',
+                negative: '#F87171'
+            };
+            return colors[sentiment] || '#9CA3AF';
+        }
+
+        // Chart initialization functions
+        function initSentimentChart(data) {
+            const ctx = document.getElementById('sentimentChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(data.sentiment_distribution),
+                    datasets: [{
+                        data: Object.values(data.sentiment_distribution),
+                        backgroundColor: Object.keys(data.sentiment_distribution).map(getColorForSentiment)
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function initWeightedSentimentChart(data) {
+            const ctx = document.getElementById('weightedSentimentChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(data.weighted_sentiment),
+                    datasets: [{
+                        data: Object.values(data.weighted_sentiment).map(v => (v * 100).toFixed(1)),
+                        backgroundColor: Object.keys(data.weighted_sentiment).map(getColorForSentiment)
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function initTrendChart(data) {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            const dates = data.map(d => new Date(d.timestamp).toLocaleDateString());
+            const sentiments = ['positive', 'neutral', 'negative'];
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: sentiments.map(sentiment => ({
+                        label: sentiment.charAt(0).toUpperCase() + sentiment.slice(1),
+                        data: data.map(d => d.weighted_sentiment[sentiment]),
+                        borderColor: getColorForSentiment(sentiment),
+                        fill: false
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1
+                        }
+                    }
+                }
+            });
+        }
+
+        // Data fetching and display
+        async function fetchAndDisplayLatestSummary() {
+            try {
+                const response = await fetch('/api/latest-summary');
+                const data = await response.json();
+                
+                // Update tweet stats
+                document.getElementById('tweetStats').innerHTML = `
+                    <p>Total Tweets: ${formatNumber(data.total_tweets)}</p>
+                    <p>Total Engagement: ${formatNumber(data.total_engagement)}</p>
+                    <p>Last Updated: ${new Date(data.timestamp).toLocaleString()}</p>
+                `;
+
+                // Initialize charts
+                initSentimentChart(data);
+                initWeightedSentimentChart(data);
+                
+                return data;
+            } catch (error) {
+                console.error('Error fetching latest summary:', error);
+            }
+        }
+
+        async function fetchAndDisplayHistoricalTrends() {
+            try {
+                const response = await fetch('/api/historical-summaries/7');
+                const data = await response.json();
+                initTrendChart(data);
+            } catch (error) {
+                console.error('Error fetching historical trends:', error);
+            }
+        }
+
+        async function fetchAndDisplayDetailedAnalysis() {
+            try {
+                const date = new Date().toISOString().split('T')[0];
+                const response = await fetch(`/api/detailed-analysis/${date}`);
+                const data = await response.json();
+                
+                const tbody = document.getElementById('detailedAnalysis');
+                tbody.innerHTML = data.slice(0, 10).map(tweet => `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 text-sm text-gray-900">${tweet.text}</td>
+                        <td class="px-6 py-4 text-sm">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                ${tweet.sentiment === 'positive' ? 'bg-green-100 text-green-800' : 
+                                tweet.sentiment === 'negative' ? 'bg-red-100 text-red-800' : 
+                                'bg-blue-100 text-blue-800'}">
+                                ${tweet.sentiment}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-900">${(tweet.confidence * 100).toFixed(1)}%</td>
+                        <td class="px-6 py-4 text-sm text-gray-900">
+                            ${tweet.metrics.retweet_count} RT, ${tweet.metrics.like_count} Likes
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error fetching detailed analysis:', error);
+            }
+        }
+
+        // Initialize the dashboard
+        document.addEventListener('DOMContentLoaded', async () => {
+            await fetchAndDisplayLatestSummary();
+            await fetchAndDisplayHistoricalTrends();
+            await fetchAndDisplayDetailedAnalysis();
+            
+            // Refresh data every 5 minutes
+            setInterval(async () => {
+                await fetchAndDisplayLatestSummary();
+                await fetchAndDisplayHistoricalTrends();
+                await fetchAndDisplayDetailedAnalysis();
+            }, 5 * 60 * 1000);
+        });
+    </script>
+</body>
+</html> 
