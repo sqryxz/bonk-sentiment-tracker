@@ -16,6 +16,7 @@ An AI-powered sentiment analysis tool that tracks and analyzes social media sent
 - Real-time Reddit data scraping for Bonk-related content
 - AI-powered sentiment analysis using transformer models
 - Comprehensive daily sentiment reports
+- Multi-channel reporting (Email, Discord, Web)
 - Web interface for viewing analysis results
 - Optional tipping system for community support
 
@@ -58,15 +59,34 @@ The daily sentiment report includes:
    ```bash
    pip install -r requirements.txt
    ```
-3. Create a `.env` file with your email settings (optional, for daily reports):
+3. Copy `.env.example` to `.env` and configure your settings:
+   ```bash
+   cp .env.example .env
    ```
+
+4. Configure notification channels (optional):
+   
+   **Email Reports:**
+   ```env
    SMTP_SERVER=smtp.gmail.com
    SMTP_PORT=587
-   SMTP_USERNAME=your_email
+   SMTP_USERNAME=your_email@gmail.com
    SMTP_PASSWORD=your_app_password
-   RECIPIENT_EMAILS=email1,email2
+   RECIPIENT_EMAILS=email1@example.com,email2@example.com
    ```
-4. Run the application:
+   
+   **Discord Reports:**
+   ```env
+   DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your_webhook_url
+   ```
+   
+   To set up Discord integration:
+   1. Create a Discord server or use an existing one
+   2. Go to Server Settings > Integrations > Webhooks
+   3. Create a new webhook and copy the webhook URL
+   4. Add the URL to your `.env` file
+
+5. Run the application:
    ```bash
    python main.py
    ```
@@ -77,6 +97,7 @@ The daily sentiment report includes:
 - `src/analysis/` - Sentiment analysis and report generation
 - `src/api/` - FastAPI web server
 - `src/models/` - Data models and schemas
+- `src/integrations/` - External platform integrations (Discord, Email)
 - `frontend/` - Web interface
 - `data/` - Storage for collected data and analysis results
 
@@ -85,8 +106,8 @@ The daily sentiment report includes:
 1. The scraper runs automatically every hour to collect new data
 2. Sentiment analysis is performed on collected data
 3. Daily summaries are generated at midnight UTC
-4. Access the web interface at `http://localhost:8080` to view results
-5. Daily reports are sent via email if configured
+4. Reports are sent to configured channels (Email, Discord)
+5. Access the web interface at `http://localhost:8080` to view results
 
 ## Contributing
 
